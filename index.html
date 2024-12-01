@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rush Box - Futuristic Space Shooter</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: radial-gradient(ellipse at center, #0d0d0d, #000);
+      font-family: 'Orbitron', sans-serif;
+      touch-action: none;
+      color: white;
+    }
+    canvas {
+      display: block;
+    }
+    #score, #highScore {
+      position: absolute;
+      top: 10px;
+      font-size: 18px;
+      z-index: 10;
+    }
+    #score {
+      left: 10px;
+    }
+    #highScore {
+      right: 90px;
+    }
+    #gameName {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 24px;
+      font-weight: bold;
+      color: cyan;
+      z-index: 10;
+    }
+    #aboutSection {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80%;
+      background-color: rgba(0, 0, 0, 0.8);
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      z-index: 100;
+    }
+    #aboutContent {
+      font-size: 18px;
+      margin-bottom: 20px;
+    }
+    #closeAboutBtn {
+      background-color: cyan;
+      color: black;
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    #closeAboutBtn:hover {
+      background-color: white;
+    }
+    .icon {
+      position: absolute;
+      top: 10px;
+      font-size: 24px;
+      color: white;
+      cursor: pointer;
+    }
+    .icon:hover {
+      color: cyan;
+    }
+    #saveIcon {
+      right: 50px;
+    }
+    #resetIcon {
+      right: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameName">Rush Box</div>
+  <div id="score">Score: 0</div>
+  <div id="highScore">High Score: 0</div>
+  <i id="saveIcon" class="fas fa-save icon" title="Save & Exit"></i>
+  <i id="resetIcon" class="fas fa-redo icon" title="Reset High Score"></i>
+
+  <!-- About Section -->
+  <div id="aboutSection">
+    <div id="aboutContent">
+      <h2>Rush Box</h2>
+      <p>Dodge, dash, and survive! In Rush Box, navigate through an intense, fast-paced world filled with obstacles and red boxes. The longer you last, the faster the action gets! Keep your reflexes sharp and aim to beat your high score. Can you escape the rush?</p>
+      <p><strong>Developer:</strong> DRJ</p>
+      <p><strong>Team:</strong> FRR</p>
+    </div>
+    <button id="closeAboutBtn">Close</button>
+  </div>
+
+  <canvas id="gameCanvas"></canvas>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let player = {
+      x: canvas.width / 2 - 25,
+      y: canvas.height - 60,
+      width: 50,
+      height: 50,
+      speed: 6,
+      dx: 0,
+    };
+
+    let bullets = [];
+    let enemies = [];
+    let score = 0;
+    let highScore = localStorage.getItem('highScore') || 0;
+    let touchX = 0;
+    let difficulty = 1;
+
+    document.getElementById('highScore').textContent = `High Score: ${highScore}`;
+
+    function drawPlayer() {
+      ctx.fillStyle = 'cyan';
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = 'cyan';
+      ctx.fillRect(player.x, player.y, player.width, player.height);
+    }
+
+    function movePlayer() {
+      player.x += player.dx;
+      if (player.x < 0) player.x = 0;
+      if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+    }
+
+    function drawBullets() {
+      ctx.fillStyle = '#f5f5f5';
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = 'white';
+      bullets.forEach(bullet => {
+        ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+      });
+    }
+
+    function moveBullets() {
+      bullets = bullets.filter(bullet => {
+        bullet.y -= bullet.speed;
+        return bullet.y > 0;
+      });
+    }
+
+    function shootBullet() {
+      bullets.push({
+        x: player.x + player.width / 2 - 2.5,
+        y: player.y,
+        width: 5,
+        height: 10,
+        speed: 10,
+      });
+    }
+
+    function drawEnemies() {
+      ctx.fillStyle = '#ff3030';
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = 'red';
+      enemies.forEach(enemy => {
+        ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+      });
+    }
+
+    function moveEnemies() {
+      enemies = enemies.filter(enemy => {
+        enemy.y += enemy.speed * difficulty;
+        if (enemy.y >= canvas.height) {
+          score -= 10;
+          return false;
+        }
+        return true;
+      });
+    }
+
+    function createEnemies() {
+      if (Math.random() < 0.02 * difficulty) {
+        const size = 40;
+        enemies.push({
+          x: Math.random() * (canvas.width - size),
+          y: -size,
+          width: size,
+          height: size,
+          speed: Math.random() * 2 + 1,
+        });
+      }
+    }
+
+    function checkCollisions() {
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        for (let j = bullets.length - 1; j >= 0; j--) {
+          if (
+            bullets[j].x < enemies[i].x + enemies[i].width &&
+            bullets[j].x + bullets[j].width > enemies[i].x &&
+            bullets[j].y < enemies[i].y + enemies[i].height &&
+            bullets[j].y + bullets[j].height > enemies[i].y
+          ) {
+            enemies.splice(i, 1);
+            bullets.splice(j, 1);
+            score += 10;
+            break;
+          }
+        }
+      }
+    }
+
+    function updateScore() {
+      document.getElementById('score').textContent = `Score: ${score}`;
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('highScore', highScore);
+        document.getElementById('highScore').textContent = `High Score: ${highScore}`;
+      }
+    }
+
+    function saveProgress() {
+      localStorage.setItem('highScore', highScore);
+      alert('Progress Saved!');
+      closeGame();
+    }
+
+    function resetHighScore() {
+      localStorage.setItem('highScore', 0);
+      highScore = 0;
+      document.getElementById('highScore').textContent = `High Score: ${highScore}`;
+      alert('High Score Reset!');
+    }
+
+    function closeGame() {
+      window.close();
+    }
+
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      movePlayer();
+      moveBullets();
+      moveEnemies();
+      checkCollisions();
+
+      drawPlayer();
+      drawBullets();
+      drawEnemies();
+      createEnemies();
+      updateScore();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    canvas.addEventListener('touchstart', (e) => {
+      touchX = e.touches[0].clientX;
+      if (touchX < player.x) player.dx = -player.speed;
+      else if (touchX > player.x + player.width) player.dx = player.speed;
+    });
+
+    canvas.addEventListener('touchend', () => player.dx = 0);
+    canvas.addEventListener('touchstart', shootBullet);
+
+    document.getElementById('saveIcon').addEventListener('click', saveProgress);
+    document.getElementById('resetIcon').addEventListener('click', resetHighScore);
+
+    // Show About Section and Auto-close after 3 seconds
+    setTimeout(() => {
+      document.getElementById('aboutSection').style.display = 'none';
+    }, 3000);
+
+    // Increase difficulty every 30 seconds
+    setInterval(() => {
+      difficulty += 0.5;
+    }, 30000);
+
+    gameLoop();
+  </script>
+</body>
+</html>
