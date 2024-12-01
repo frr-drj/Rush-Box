@@ -22,7 +22,7 @@ To play **Rush Box** locally:
 
 1. Clone the repository:
     ```bash
-    git clone https://github.com/yourusername/rush-box.git
+    git clone https://frr-drj.github.io/Rush-Box.git
     ```
 2. Open the `index.html` file in your browser.
 3. Start playing!
